@@ -161,43 +161,81 @@ All allocations are linear and contiguous, maximizing cache efficiency.
 
 ### Requirements
 
-- **C++20 compiler**: a mature version of Clang or MSVC (More can be found under [Library Build](#library-build))
+- **C++20 compiler**: Clang 13 or MSVC 2022 19.30 (Throughout development WideLips was compiled using LLVM Clang 21 
+and MSVC 2022 19.44, GCC should work as well.)
+>Note: For best possible performance use build WideLips with Clang!
+Our benchmarks showed that code compiled with clang was nearly 40% faster 
+and in some cases 100% faster than code compiled with MSVC.
+- **Flavors**: libWideLips can be built both as static or shared library, 
+by default, it's built as a static library to build libWideLips as a shared library,
+use `-DBUILD_SHARED_LIBS=ON` option.
 - **CMake**: 3.20 or newer
+- **Ninja**: WideLips uses Ninja primarily as its build system (generator), but 'Unix Makefiles' and 'Visual Studio' are supported as well.
+- **OS**: Windows, Linux, Apple-Silicon macOS (in the future)
 - **CPU**: AVX2 support (Intel Haswell 2013+, AMD Excavator 2015+)
 
-### Build
-
-```bash
-# Standard release build
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
-```
-
-### Quick Start
-
-```bash
-
-# Run the benchmark suite
-./build/WideLipsBench
-
-# Run tests
-ctest --test-dir build --output-on-failure
-```
-
 ### Build Options
+before getting into the build process, you can use the following options to customize the build:
+- **-DBuildTests**: Build unit tests
+- **-DBuildBenchmarks**: Build benchmarks
+- **-DENABLE_SANITIZERS**: Enable sanitizers (UB and ASAN are the ones used)
+- **-DENABLE_COVERAGE**: Enable coverage instrumentation
 
+### Build Library
+- **Static Library**:
 ```bash
-# Debug build with sanitizers
-cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
+#release build sample
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=clang" "-DCMAKE_CXX_COMPILER=clang++" -G Ninja -S <PATH_TO_SOURCE_ROOT>
+cmake --build . --target libWideLips -j
+```
 
-# Release with benchmarks
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_BENCHMARKS=ON
+- **Shared Library**:
+```bash
+#release build sample
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=clang" "-DCMAKE_CXX_COMPILER=clang++" -DBUILD_SHARED_LIBS=ON -G Ninja -S <PATH_TO_SOURCE_ROOT>
+cmake --build . --target libWideLips -j
+```
 
-# Full build with everything
-cmake -B build -DCMAKE_BUILD_TYPE=Release \
-      -DBUILD_TESTS=ON \
-      -DBUILD_BENCHMARKS=ON \
-      -DBUILD_EXAMPLES=ON
+### Build And Run Benchmarks
+Benchmarks are built by default, but you can disable them by using `-DBUILD_BENCHMARKS=OFF` option.
+```bash
+mkdir build_test && cd build_test
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=clang" "-DCMAKE_CXX_COMPILER=clang++" -G Ninja -S <PATH_TO_SOURCE_ROOT>
+cmake --build . --target WideLipsBench -j
+cd benchmark
+#to run the benchmark on windows
+.\WideLipsBench.exe
+#to run the benchmark on linux
+./WideLipsBench
+```
+
+### Testing
+Unit tests are built by default, but you can disable them by using `-DBUILD_TESTS=OFF` option.
+Also make sure that LLVM binaries and Visual Studio C++ are in your PATH!
+Otherwise, you need to specify the absolute path to them.
+- **Basic Unit Testing**
+```bash
+mkdir build_test && cd build_test
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=clang" "-DCMAKE_CXX_COMPILER=clang++" -G Ninja -S <PATH_TO_SOURCE_ROOT>
+cmake --build . --target WideLipsTests -j
+#for dialect specific tests
+cmake --build . --target ClojureTests -j
+cmake --build . --target CommonLispTests -j
+```
+- **Unit Testing With Sanitizers And Coverage On Linux**
+```bash
+mkdir build_test && cd build_test
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=clang" "-DCMAKE_CXX_COMPILER=clang++" -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON -G Ninja -S <PATH_TO_SOURCE_ROOT>
+cmake --build . --target WideLipsTests -j
+```
+
+- **Unit Testing With Sanitizers And Coverage On Windows**
+```shell
+mkdir build_test && cd build_test
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=cl" "-DCMAKE_CXX_COMPILER=cl" -DENABLE_SANITIZERS=ON -DENABLE_COVERAGE=ON -G Ninja -S <PATH_TO_SOURCE_ROOT>
+cmake --build . --target WideLipsTests -j
 ```
 
 ## Project Structure
@@ -226,7 +264,8 @@ WideLips/
 
 All of the benchmarks were done on Raptor Lake CPU (intel i9-13900k), WideLips achieves:
 
-- **Lexing throughput**: 3.4–4GB/S (on average)
+- **Lexing throughput**: 3GB/S on average with maximum throughput (but inconsistent) of 6GB/S and more 
+for a wide range of samples 
 - **Startup time**: Near-instant for lazy parsing (Blue pass only)
 
 The SIMD approach really shines on large files where branch prediction fails traditional parsers.
@@ -239,12 +278,6 @@ The SIMD approach really shines on large files where branch prediction fails tra
 - **No wasted work**: Lazy parsing only processes what you access
 - **Cache-friendly**: Contiguous memory layout and predictable access patterns
 
-### Library Build
-- **Flavor**: libWideLips can be built both as a static or shared library, by default, it's built as a static library to build 
-libWideLips as a shared library, use `-DBUILD_SHARED_LIBS=ON` option.
-- **OS**: WideLips was built on Windows mainly but Linux is fully supported as well.
-- **Compiler**: WideLips was compiled using LLVM Clang 21 and MSVC 2022 19.44, but it should work with any C++20 compiler.
-
 ### Building And Running Tests
 Unit tests projects are built from the source tree and do not link against the core library (libWideLips). 
 The unit test project also is built by default, but there are a couple of options and remarks to mention:
@@ -256,24 +289,6 @@ is enabled the binaries are instrumented with `-fprofile-instr-generate` and `-f
 to use `llvm-cov` and `llvm-profdata` tools to analyze the results, not to mention that the binaries are built with `-O0`
 for precise mapping, and to avoid any optimization like DCE (dead code elimination) or inlining, coverage can be enabled
 with builds using LLVM clang and MSVC.
-
-## Testing
-
-```bash
-# Build and run all tests
-cmake --build build --target WideLipsTests
-
-# Run with verbose output
-ctest --test-dir build --output-on-failure
-
-# Run specific test suite
-./build/tests/WideLipsTests --gtest_filter=LexerTest.*
-
-# Run with sanitizers
-cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_SANITIZERS=ON
-cmake --build build
-./build/tests/WideLipsTests
-```
 
 ## Current Shortcomings
 
