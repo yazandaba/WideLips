@@ -1,0 +1,5 @@
+﻿### Syncthing template
+# Syncthing caches
+.stversions
+\.vs
+\.idea
