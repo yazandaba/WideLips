@@ -1,0 +1,2 @@
+﻿add_subdirectory(clojure)
+add_subdirectory(commonLisp)
