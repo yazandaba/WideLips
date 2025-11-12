@@ -5,7 +5,7 @@ A high‑performance, SIMD‑accelerated Lisp parser and parsing framework desig
 ## What's This About?
 
 Most Lisp parsers advance one character at a time through a state machine. WideLips flips that model: 
-it ingests N^2 (currently 32 only) characters per step and classifies them in parallel using underlying CPU SIMD instructions. 
+it ingests 2^N (currently 32 only) characters per step and classifies them in parallel using underlying CPU SIMD instructions. 
 The classification stage produces compact bit‑vectors where each bit corresponds to the character at position N and encodes its class. 
 The parser’s state machine then operates over these masks using bit‑twiddling to navigate states and identify tokens 
 with far fewer branches and cache misses.
@@ -40,7 +40,7 @@ This architecture targets maximum throughput on modern CPUs while staying practi
 
 ### 1. SIMD Vectorized Tokenization
 
-WideLips processes text in N^2 chunks (32-bytes currently) using CPU underlying vector unit (X86 AVX2 currently):
+WideLips processes text in 2^N chunks (32-bytes currently) using CPU underlying vector unit (X86 AVX2 currently):
 
 - **Parallel Classification**: Identify character classes (parentheses, identifiers, numbers, whitespace) across 32 characters simultaneously
 - **Bitmask Generation**: SIMD comparisons produce compact 32-bit masks for fast decision-making
@@ -53,9 +53,9 @@ instructions are scheduled carefully and expression trees are balanced to run in
 
 Custom `BumpVector<T>` and `MonoBumpVector<T>` containers backed by custom arena allocators:
 
-- **Batch Allocation**: Pre-allocate large memory pools; allocating tokens never call `malloc` or any other dynamic allocation facilities
-- **Cache-Friendly Layout**: Contiguous token storage improves prefetching and reduces TLB pressure
-- **Fast Reset**: Parser reuse or deallocate via arena reset without individual `free()` calls
+- **Batch Allocation**: Pre-allocate large memory pools; allocating objects never call `malloc` or any other dynamic allocation facilities
+- **Cache-Friendly Layout**: Contiguous storage (ensuring spatial locality) improves prefetching and reduces TLB pressure
+- **Fast Reset**: Parser reuse or deallocate via arena reset without individual `free()`or any dynamic memory deallocation calls
 - **Predictable Sizing**: Arena capacity estimated from file size to minimize reallocation
 
 This eliminates dynamic allocation/deallocation overhead that plagues traditional parsers allocating thousands of small token objects.
@@ -83,18 +83,18 @@ WideLips separates structural analysis from detailed tokenization:
 
 **Phase 1 (Blue Pass)**: Fast structure extraction
 - SIMD-classify entire file into `TokenizationBlock[]` array
-- Stack-based S-expression matching to build `SExprIndex[]` (parenthesis pairs)
+- Stack-based S-expression matching to build a sparse `SExprIndex[]` (parenthesis pairs)
 - Diagnostic generation for malformed structure
 - Builds a map of where every S-expression lives
 
 **Phase 2 (Green Pass)**: On-demand tokenization
 - `TokenizeFirstSExpr()` / `TokenizeNext()`: Materialize tokens only for active S-expressions
 - Keyword recognition via SWAR (SIMD-Within-A-Register) for identifiers ≤8 characters
-- AST construction happens lazily per S-expression
+- Parse tree construction happens lazily per S-expression
 - Skip tokenizing code sections you never traverse
 
 **Why This Matters**: If you're analyzing one function in a 50,000-line codebase, you only pay for what you use. 
-The rest stays as compressed structural metadata.
+The rest stays as structural metadata.
 
 ## Architecture Overview
 
@@ -110,16 +110,16 @@ Source Text
 │  - Build S-expression indices       │
 └─────────────────────────────────────┘
     ↓
-SExprIndex[] (Compressed structure map)
+SExprIndex[] (structure map)
     ↓
 ┌─────────────────────────────────────┐
 │  Phase 2: Green Pass (On-Demand)    │
 │  - Tokenize specific S-expressions  │
 │  - SWAR keyword recognition         │
-│  - AST materialization              │
+│  - Parse Tree materialization       │
 └─────────────────────────────────────┘
     ↓
-Tokens & AST (Only for accessed code)
+Tokens & Parse Tree (Only for accessed code)
 ```
 
 ### SIMD Character Classification
@@ -163,15 +163,15 @@ All allocations are linear and contiguous, maximizing cache efficiency.
 
 - **C++20 compiler**: Clang 13 or MSVC 2022 19.30 (Throughout development WideLips was compiled using LLVM Clang 21 
 and MSVC 2022 19.44, GCC should work as well.)
->Note: For best possible performance use build WideLips with Clang!
+>Note: For best possible performance build WideLips with Clang!
 Our benchmarks showed that code compiled with clang was nearly 40% faster 
 and in some cases 100% faster than code compiled with MSVC.
 - **Flavors**: libWideLips can be built both as static or shared library, 
 by default, it's built as a static library to build libWideLips as a shared library,
 use `-DBUILD_SHARED_LIBS=ON` option.
 - **CMake**: 3.20 or newer
-- **Ninja**: WideLips uses Ninja primarily as its build system (generator), but 'Unix Makefiles' and 'Visual Studio' are supported as well.
-- **OS**: Windows, Linux, Apple-Silicon macOS (in the future)
+- **Ninja**: WideLips uses Ninja primarily as its build system, but 'Unix Makefiles' and 'Visual Studio' are supported as well.
+- **OS**: Windows, Linux
 - **CPU**: AVX2 support (Intel Haswell 2013+, AMD Excavator 2015+)
 
 ### Build Options
@@ -270,14 +270,6 @@ for a wide range of samples
 
 The SIMD approach really shines on large files where branch prediction fails traditional parsers.
 
-### What Makes It Fast
-
-- **No malloc in hot path**: Arena allocators eliminate heap allocation overhead
-- **No string copies**: Zero-copy tokens reference source directly
-- **No branches**: SIMD operations avoid conditional jumps
-- **No wasted work**: Lazy parsing only processes what you access
-- **Cache-friendly**: Contiguous memory layout and predictable access patterns
-
 ### Building And Running Tests
 Unit tests projects are built from the source tree and do not link against the core library (libWideLips). 
 The unit test project also is built by default, but there are a couple of options and remarks to mention:
@@ -319,7 +311,7 @@ The two-phase design keeps the Blue pass (structural analysis) separate from the
 
 - Syntax extensions only touch the Green pass
 - New dialects can reuse the same Blue pass
-- Custom AST representations are easy to plug in
+- Custom Parse Tree representations are easy to plug in
 
 ## License
 
