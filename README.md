@@ -315,7 +315,7 @@ The two-phase design keeps the Blue pass (structural analysis) separate from the
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License—see [LICENSE](LICENSE).  file for details.
 
 ---
 
