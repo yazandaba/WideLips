@@ -90,7 +90,7 @@ namespace WideLips::Diagnostic {
     LispDiagnostic DiagnosticFactory::SyntaxError(const std::wstring_view file,
         const std::uint32_t line,
         const std::uint32_t col,
-        const std::string& expected) {
+        const std::string_view expected) {
         return LispDiagnostic {
             std::move(Create(file, line, col, Severity::Error, ErrorCodeToString(ParsingErrorCode::SyntaxError),
                 std::format(L"Syntax error, '{}' expected", WidenString(expected)))),

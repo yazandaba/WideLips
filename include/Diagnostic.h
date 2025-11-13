@@ -85,7 +85,7 @@ namespace WideLips {
             static LispDiagnostic SyntaxError(std::wstring_view file,
                 std::uint32_t line,
                 std::uint32_t col,
-                const std::string& expected);
+                std::string_view expected);
 
             static LispDiagnostic UnexpectedToken(std::wstring_view file,
                std::uint32_t line,
