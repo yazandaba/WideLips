@@ -7,6 +7,10 @@
 #include "PaddedString.h"
 
 namespace WideLips {
+    namespace Examples {
+        class SchemeParser;
+    }
+
     class LispParseTreeBuilder;
     struct SourceLocation;
     struct LispParseNodeBase;
@@ -74,6 +78,7 @@ namespace WideLips {
         friend struct LispAuxiliary;
         friend class LispParseTree;
         friend class LispParser;
+        friend class Examples::SchemeParser;
     protected:
         using LispParseNodeBasePointer = LispParseNodeBase*;
         using LispParseNodeAuxiliaryPointer = LispAuxiliary*;
@@ -111,33 +116,69 @@ namespace WideLips {
 
     template<typename TConcreteVisitor>
     struct LispParseTreeVisitor {
-        void Visit(LispAtom * const atom) {
+        ALWAYS_INLINE void Visit(LispAtom * const atom) {
             reinterpret_cast<TConcreteVisitor*>(this)->Visit(atom);
         }
-        void Visit(LispList * const list) {
+        ALWAYS_INLINE void Visit(LispList * const list) {
             reinterpret_cast<TConcreteVisitor*>(this)->Visit(list);
         }
-        void Visit(LispArguments * const arguments) {
+        ALWAYS_INLINE void Visit(LispArguments * const arguments) {
             reinterpret_cast<TConcreteVisitor*>(this)->Visit(arguments);
         }
-        void Visit(LispParseError * const error) {
+        ALWAYS_INLINE void Visit(LispParseError * const error) {
             reinterpret_cast<TConcreteVisitor*>(this)->Visit(error);
+        }
+    protected:
+        template<typename MostDerivedVisitor>
+        ALWAYS_INLINE void Dispatch(LispParseNodeBase * const node) requires std::derived_from<MostDerivedVisitor,TConcreteVisitor> {
+            switch (node->Kind) {
+                case LispParseNodeKind::SExpr:
+                    reinterpret_cast<TConcreteVisitor*>(this)->Visit(reinterpret_cast<LispList*>(node));
+                    break;
+                case LispParseNodeKind::Arguments:
+                    reinterpret_cast<TConcreteVisitor*>(this)->Visit(reinterpret_cast<LispArguments*>(node));
+                    break;
+                case LispParseNodeKind::Error:
+                    reinterpret_cast<TConcreteVisitor*>(this)->Visit(reinterpret_cast<LispParseError*>(node));
+                    break;
+                default:
+                    reinterpret_cast<TConcreteVisitor*>(this)->Visit(reinterpret_cast<LispAtom*>(node));
+                    break;
+            }
         }
     };
 
     template<typename TConcreteVisitor>
     struct ImmutableLispParseTreeVisitor {
-        void Visit(const LispAtom * const atom) const {
+        ALWAYS_INLINE void Visit(const LispAtom * const atom) const {
             reinterpret_cast<const TConcreteVisitor*>(this)->Visit(atom);
         }
-        void Visit(const LispList * const list) const {
+        ALWAYS_INLINE void Visit(const LispList * const list) const {
             reinterpret_cast<const TConcreteVisitor*>(this)->Visit(list);
         }
-        void Visit(const LispArguments * const arguments) const{
+        ALWAYS_INLINE void Visit(const LispArguments * const arguments) const{
             reinterpret_cast<const TConcreteVisitor*>(this)->Visit(arguments);
         }
-        void Visit(const LispParseError * const error) const{
+        ALWAYS_INLINE void Visit(const LispParseError * const error) const{
             reinterpret_cast<const TConcreteVisitor*>(this)->Visit(error);
+        }
+    protected:
+        template<typename MostDerivedVisitor>
+        ALWAYS_INLINE void Dispatch(const LispParseNodeBase * const node) const requires std::derived_from<MostDerivedVisitor,TConcreteVisitor>{
+            switch (node->Kind) {
+                case LispParseNodeKind::SExpr:
+                    reinterpret_cast<const MostDerivedVisitor*>(this)->Visit(reinterpret_cast<const LispList*>(node));
+                    break;
+                case LispParseNodeKind::Arguments:
+                    reinterpret_cast<const MostDerivedVisitor*>(this)->Visit(reinterpret_cast<const LispArguments*>(node));
+                    break;
+                case LispParseNodeKind::Error:
+                    reinterpret_cast<const MostDerivedVisitor*>(this)->Visit(reinterpret_cast<const LispParseError*>(node));
+                    break;
+                default:
+                    reinterpret_cast<const MostDerivedVisitor*>(this)->Visit(reinterpret_cast<const LispAtom*>(node));
+                    break;
+            }
         }
     };
 
@@ -350,18 +391,18 @@ namespace WideLips {
     private:
         const LispToken * const _argumentsBegin;
         const LispToken * const _argumentsEnd;
-        LispAtom* _arguments;
+        LispParseNodeBasePointer _arguments;
     public:
         LispArguments(const LispToken * const argumentsBegin,
             const LispToken * const argumentsEnd,
-            LispAtom* arguments,
+            const LispParseNodeBasePointer arguments,
             const LispParseNodeBasePointer next,
             const LispParseNodeAuxiliaryPointer nodeAuxiliary,
-            LispParser* parser)
-        : LispParseNode(next,parser,LispParseNodeKind::SExpr,nodeAuxiliary),
+            LispParser* parser):
+        LispParseNode(next,parser,LispParseNodeKind::SExpr,nodeAuxiliary),
         _argumentsBegin(argumentsBegin),
         _argumentsEnd(argumentsEnd),
-        _arguments(arguments) {}
+        _arguments(arguments){}
     public:
         NODISCARD ALWAYS_INLINE SourceLocation GetSourceLocation() const {
             return {_argumentsBegin->Line, _argumentsBegin->Column};
@@ -373,6 +414,10 @@ namespace WideLips {
 
         NODISCARD ALWAYS_INLINE const LispAuxiliary * GetNodeAuxiliary() const {
             return LispParseNode::GetNodeAuxiliary(_argumentsBegin);
+        }
+
+        NODISCARD ALWAYS_INLINE LispParseNodeBase* GetArguments() const {
+            return _arguments;
         }
 
         template<typename TConcreteVisitor>
@@ -493,8 +538,9 @@ namespace WideLips {
         LispParseTree& operator=(const LispParseTree&) = delete;
         LispParseTree& operator=(LispParseTree&&) = delete;
     public:
+        template<WideLipsParser TParser = LispParser>
         NODISCARD static LispParseResult Parse(const std::filesystem::path& filePath,bool conservative) {
-            auto parser = std::make_unique<LispParser>(filePath,conservative);
+            auto parser = std::make_unique<TParser>(filePath,conservative);
             auto parsedProgram = parser->Parse();
             bool success = parsedProgram != nullptr;
             for (auto&& diagnostic : parser->GetDiagnostics()) {
@@ -515,11 +561,12 @@ namespace WideLips {
             };
         }
 
+        template<WideLipsParser TParser = LispParser>
         NODISCARD static LispParseResult Parse(PaddedString&& paddedString,bool conservative) {
-            auto parser = std::make_unique<LispParser>(paddedString.GetUnderlyingString(), conservative);
-            auto parsedProgram = parser->Parse();
+            auto parser = std::make_unique<TParser>(paddedString.GetUnderlyingString(), conservative);
+            auto parsedProgram = static_cast<LispParser*>(parser.get())->Parse();
             bool success = true;
-            for (auto&& diagnostic : parser->GetDiagnostics()) {
+            for (auto&& diagnostic : static_cast<LispParser*>(parser.get())->GetDiagnostics()) {
                 if (diagnostic.GetSeverity() == Diagnostic::Severity::Error) {
                     success = false;
                     break;
@@ -644,16 +691,16 @@ namespace WideLips {
     ALWAYS_INLINE void LispParseNodeBase::Accept(LispParseTreeVisitor<TConcreteVisitor> *visitor) {
         switch (Kind) {
             case LispParseNodeKind::SExpr:
-                reinterpret_cast<LispList*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<LispList*>(this));
                 break;
             case LispParseNodeKind::Arguments:
-                reinterpret_cast<LispArguments*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<LispArguments*>(this));
                 break;
             case LispParseNodeKind::Error:
-                reinterpret_cast<LispParseError*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<LispParseError*>(this));
                 break;
             default:
-                reinterpret_cast<LispAtom*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<LispAtom*>(this));
                 break;
         }
     }
@@ -662,16 +709,16 @@ namespace WideLips {
     void LispParseNodeBase::Accept(const ImmutableLispParseTreeVisitor<TConcreteVisitor> *visitor) const {
         switch (Kind) {
             case LispParseNodeKind::SExpr:
-                reinterpret_cast<const LispList*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<const LispList*>(this));
                 break;
             case LispParseNodeKind::Arguments:
-                reinterpret_cast<const LispArguments*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<const LispArguments*>(this));
                 break;
             case LispParseNodeKind::Error:
-                reinterpret_cast<const LispParseError*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<const LispParseError*>(this));
                 return;
             default:
-                reinterpret_cast<const LispAtom*>(this)->Accept(visitor);
+                visitor->Visit(reinterpret_cast<const LispAtom*>(this));
                 break;
         }
     }
