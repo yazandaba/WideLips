@@ -238,6 +238,17 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=
 cmake --build . --target WideLipsTests -j
 ```
 
+### Examples
+Benchmarks are built by default, but you can disable them by using `-DBUILD_EXAMPLES=OFF` option.
+```bash
+mkdir build_examples && cd build_examples
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=ninja "-DCMAKE_C_COMPILER=clang" "-DCMAKE_CXX_COMPILER=clang++" -G Ninja -S <PATH_TO_SOURCE_ROOT>
+#to build the Scheme-like parser example
+cmake --build . --target WideLipsScheme -j
+#to build general Lisp parser example
+cmake --build . --target WideLipsUsageExample -j
+```
+
 ## Project Structure
 
 ```
@@ -287,6 +298,35 @@ with builds using LLVM clang and MSVC.
 - **SIMD Platform**: AVX2 only (ARM NEON and AVX-512 planned)
 - **OS**: Needs more testing on Linux, X86 macOS will be discarded from any support, but M-based (AArch64)
 macOS is planned for future support.
+
+## Supporting New Dialects
+WideLips is designed for extensibility, allowing developers to add parsers for new LISP dialects. 
+However, there is one key limitation to be aware of in the current implementation:
+
+Top-Level Expressions Must Be Lists: WideLips requires all expressions at the top level of a file to be lists 
+(i.e., enclosed in parentheses).
+It does not currently support top-level "atoms"—standalone values like symbols, numbers, or booleans.
+For example, the following code is perfectly valid in Scheme, but it will fail in WideLips:
+```Scheme
+(define (factorial n)
+          (if (<= n 1)
+              1
+              (* n (factorial (- n 1)))))
+  #t  ; WideLips will report an error here
+  #f  ; This is also a top-level atom
+```
+- **Justification:** This restriction is a side effect of the current architecture, specifically how the "blue pass" 
+builds s-expression indices and how the lazy parse tree is constructed, 
+Furthermore, since evaluating atoms at the top level (or in a REPL) is typically a no-op 
+(i.e., the atom will act as an identity function (return itself)),
+addressing this limitation has not been a high priority.
+
+- **Future Plans:** Removing this limitation is straightforward, but it is not a high priority at the moment.
+
+- (Note on internal terminology: In the WideLips codebase, "SExpression" refers exclusively to lists, while "Atom" is 
+used for all other terms, including sub-expressions.)
+
+Removing the restriction is trivial, but it's not a priority right now
 
 ## Contributing
 

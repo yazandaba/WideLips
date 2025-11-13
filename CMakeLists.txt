@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(BUILD_TESTING ON)
 set(BUILD_BENCHMARK ON)
+set(BUILD_EXAMPLES ON)
 
 # ---------------------------------------------------------------------------
 # AVX2 Support Detection and Flags
@@ -47,6 +48,13 @@ endif()
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_BENCHMARK)
     add_subdirectory(benchmark)
     message(STATUS "Building with benchmarks enabled")
+endif()
+# ---------------------------------------------------------------------------
+# Examples Submodule
+# ---------------------------------------------------------------------------
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_EXAMPLES)
+    add_subdirectory(examples)
+    message(STATUS "Building with examples enabled")
 endif()
 
 # ---------------------------------------------------------------------------
