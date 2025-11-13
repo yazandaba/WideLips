@@ -16,10 +16,11 @@ namespace WideLips {
         friend class LispParseTree;
     private:
         AlignedFileReadResult _optionalAlignedFile;
-        std::unique_ptr<LispLexer> _lexer;
-        std::pmr::monotonic_buffer_resource _parseNodesPool;
-        std::pmr::polymorphic_allocator<> _parseNodesAllocator;
-        LispAtom* _endOfProgram;
+    protected:
+        std::unique_ptr<LispLexer> Lexer;
+        std::pmr::monotonic_buffer_resource ParseNodesPool;
+        std::pmr::polymorphic_allocator<> ParseNodesAllocator;
+        LispAtom* EndOfProgram;
     public:
         WL_API LispParser(const std::filesystem::path &filePath,bool conservative);
         WL_API LispParser(std::string_view program,bool conservative);
@@ -37,13 +38,15 @@ namespace WideLips {
     protected:
         NODISCARD virtual LispParseNodeBase* ParseDialectSpecial(const LispToken* currentToken);
         NODISCARD LispLexer* GetLexer() const;
-    private:
         WL_HIDDEN NODISCARD LispParseError* OnUnrecognizedToken(const LispToken* currentToken);
         WL_HIDDEN NODISCARD BumpVector<Diagnostic::LispDiagnostic>& GetDiagnosticsInternal() const;
         NODISCARD LispAuxiliary* MakeAuxiliary(const LispToken* auxBegin,const LispToken* auxEnd);
         NODISCARD LispList* MakeList(const LispToken* sexprBegin,const LispToken* sexprEnd);
         NODISCARD LispAtom * MakeEndOfProgram() const;
     };
+
+    template<typename TParser>
+    concept WideLipsParser = std::is_base_of_v<LispParser,TParser>;
 }
 
 

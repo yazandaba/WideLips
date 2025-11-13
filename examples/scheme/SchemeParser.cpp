@@ -23,7 +23,7 @@ namespace WideLips::Examples{
                 auto openParen = currentToken;
                 auto closeParen = currentToken + 1;
 
-                newNode = _parseNodesAllocator.new_object<LispList>(
+                newNode = ParseNodesAllocator.new_object<LispList>(
                     openParen,
                     closeParen,
                     nullptr,
@@ -52,7 +52,7 @@ namespace WideLips::Examples{
                             *currentToken
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
@@ -67,7 +67,7 @@ namespace WideLips::Examples{
                             *nameToken
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
@@ -84,7 +84,7 @@ namespace WideLips::Examples{
                                 *currentToken
                             )
                         );
-                        newNode = _parseNodesAllocator.new_object<LispParseError>(
+                        newNode = ParseNodesAllocator.new_object<LispParseError>(
                             currentToken,
                             nullptr,
                             nullptr,
@@ -99,14 +99,14 @@ namespace WideLips::Examples{
                                 *paramsToken
                             )
                         );
-                        newNode = _parseNodesAllocator.new_object<LispParseError>(
+                        newNode = ParseNodesAllocator.new_object<LispParseError>(
                             currentToken,
                             nullptr,
                             nullptr,
                             this
                         );
                     } else {
-                        newNode = _parseNodesAllocator.new_object<LispAtom>(
+                        newNode = ParseNodesAllocator.new_object<LispAtom>(
                             currentToken,
                             static_cast<LispParseNodeKind>(currentToken->Kind),
                             nullptr,
@@ -129,7 +129,7 @@ namespace WideLips::Examples{
                             *currentToken
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
@@ -144,14 +144,14 @@ namespace WideLips::Examples{
                             *paramsToken
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
                         this
                     );
                 } else {
-                    newNode = _parseNodesAllocator.new_object<LispAtom>(
+                    newNode = ParseNodesAllocator.new_object<LispAtom>(
                         currentToken,
                         LispParseNodeKind::Lambda,
                         nullptr,
@@ -170,7 +170,7 @@ namespace WideLips::Examples{
                 //then connect the full expression like [If]->[Condition]->[Then]->[Else]
                 //it's up to the user to choose whether this should get done eagerly or lazily (if subexpressions are lists)
 
-                newNode = _parseNodesAllocator.new_object<LispAtom>(
+                newNode = ParseNodesAllocator.new_object<LispAtom>(
                         currentToken,
                         LispParseNodeKind::If,
                         nullptr,
@@ -191,7 +191,7 @@ namespace WideLips::Examples{
                             *currentToken
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
@@ -206,14 +206,14 @@ namespace WideLips::Examples{
                             *bindingsToken
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
                         this
                     );
                 } else {
-                    newNode = _parseNodesAllocator.new_object<LispAtom>(
+                    newNode = ParseNodesAllocator.new_object<LispAtom>(
                         currentToken,
                         LispParseNodeKind::Let,
                         nullptr,
@@ -235,7 +235,7 @@ namespace WideLips::Examples{
                             *currentToken
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
@@ -250,14 +250,14 @@ namespace WideLips::Examples{
                             TokenKindToString(nameToken->Kind)
                         )
                     );
-                    newNode = _parseNodesAllocator.new_object<LispParseError>(
+                    newNode = ParseNodesAllocator.new_object<LispParseError>(
                         currentToken,
                         nullptr,
                         nullptr,
                         this
                     );
                 } else {
-                    newNode = _parseNodesAllocator.new_object<LispAtom>(
+                    newNode = ParseNodesAllocator.new_object<LispAtom>(
                         currentToken,
                         LispParseNodeKind::Defvar,
                         nullptr,
@@ -267,7 +267,7 @@ namespace WideLips::Examples{
                 }
             }
             else if (currentToken->IsOperator()) {
-                newNode = _parseNodesAllocator.new_object<LispAtom>(
+                newNode = ParseNodesAllocator.new_object<LispAtom>(
                     currentToken,
                     LispParseNodeKind::Operator,
                     nullptr,
@@ -279,7 +279,7 @@ namespace WideLips::Examples{
                 newNode = ParseDialectSpecial(currentToken);
             }
             else if (currentToken->Match(LispTokenKind::Invalid)) [[unlikely]] {
-                newNode = _parseNodesAllocator.new_object<LispParseError>(
+                newNode = ParseNodesAllocator.new_object<LispParseError>(
                     currentToken,
                     nullptr,
                     nullptr,
@@ -287,7 +287,7 @@ namespace WideLips::Examples{
                 );
             }
             else [[likely]] {
-                newNode = _parseNodesAllocator.new_object<LispAtom>(
+                newNode = ParseNodesAllocator.new_object<LispAtom>(
                     currentToken,
                     static_cast<LispParseNodeKind>(currentToken->Kind),
                     nullptr,
@@ -332,7 +332,7 @@ namespace WideLips::Examples{
     }
 
     LispParseNodeBase* SchemeParser::HandleQuote(const LispToken* quoteToken) {
-        return _parseNodesAllocator.new_object<LispAtom>(
+        return ParseNodesAllocator.new_object<LispAtom>(
             quoteToken,
             LispParseNodeKind::Operator,
             nullptr,
@@ -342,7 +342,7 @@ namespace WideLips::Examples{
     }
 
     LispParseNodeBase* SchemeParser::HandleQuasiquote(const LispToken* quasiquoteToken) {
-        return _parseNodesAllocator.new_object<LispAtom>(
+        return ParseNodesAllocator.new_object<LispAtom>(
             quasiquoteToken,
             LispParseNodeKind::Operator,
             nullptr,
@@ -352,7 +352,7 @@ namespace WideLips::Examples{
     }
 
     LispParseNodeBase* SchemeParser::HandleUnquote(const LispToken* unquoteToken) {
-        return _parseNodesAllocator.new_object<LispAtom>(
+        return ParseNodesAllocator.new_object<LispAtom>(
             unquoteToken,
             LispParseNodeKind::Operator,
             nullptr,
@@ -362,7 +362,7 @@ namespace WideLips::Examples{
     }
 
     LispParseNodeBase* SchemeParser::HandleHash(const LispToken* hashToken) {
-        return _parseNodesAllocator.new_object<LispAtom>(
+        return ParseNodesAllocator.new_object<LispAtom>(
             hashToken,
             LispParseNodeKind::Operator,
             nullptr,
