@@ -6,27 +6,36 @@ namespace WideLips {
     template<typename Walker>
     struct LispParseTreeWalker : LispParseTreeVisitor<LispParseTreeWalker<Walker>> {
     public:
-        void Visit(LispAtom * const atom) noexcept {
+        ALWAYS_INLINE void Visit( LispAtom * const atom) noexcept{
             if (atom == nullptr) {
                 return;
             }
-            reinterpret_cast<Walker*>(this)->Visit(atom->NextNode());
+            reinterpret_cast<Walker*>(this)->Visit(atom);
+            reinterpret_cast<Walker*>(this)->Dispatch(atom->NextNode());
         }
 
-        void Visit(LispList * const list) noexcept {
-            const auto children = list->GetSubExpressions();
+        ALWAYS_INLINE void Visit( LispList * const list) noexcept{
+            reinterpret_cast<Walker*>(this)->Visit(list);
+            auto children = list->GetSubExpressions();
             while (children != nullptr) {
-                reinterpret_cast<Walker*>(this)->Visit(children);
+                this->template Dispatch<Walker>(children);
+                children = children->NextNode();
             }
-            reinterpret_cast<Walker*>(this)->Visit(list->NextNode());
+            this->template Dispatch<Walker>(list->NextNode());
         }
 
-        void Visit(LispArguments* const arguments) noexcept {
+        ALWAYS_INLINE void Visit( LispArguments* const arguments) noexcept{
             reinterpret_cast<Walker*>(this)->Visit(arguments);
+            auto args = arguments->GetArguments();
+            while (args != nullptr) {
+                this->template Dispatch<Walker>(args);
+                args = args->NextNode();
+            }
         }
 
-        void Visit(LispParseError * const error) noexcept{
+        ALWAYS_INLINE void Visit( LispParseError * const error) noexcept{
             reinterpret_cast<Walker*>(this)->Visit(error);
+            reinterpret_cast<Walker*>(this)->Dispatch(error->NextNode());
         }
     };
 
@@ -37,25 +46,60 @@ namespace WideLips {
             if (atom == nullptr) {
                 return;
             }
-            reinterpret_cast<const Walker*>(this)->Visit(atom->NextNode());
+            reinterpret_cast<const Walker*>(this)->Visit(atom);
+            this->template Dispatch<Walker>(atom->NextNode());
         }
 
         void Visit(const LispList * const list) const noexcept{
-            const auto children = list->GetSubExpressions();
+            reinterpret_cast<const Walker*>(this)->Visit(list);
+            auto children = list->GetSubExpressions();
             while (children != nullptr) {
-                 reinterpret_cast<const Walker*>(this)->Visit(children);
+                this->template Dispatch<Walker>(children);
+                children = children->NextNode();
             }
-            reinterpret_cast<const Walker*>(this)->Visit(list->NextNode());
+            this->template Dispatch<Walker>(list->NextNode());
         }
 
         void Visit(const LispArguments* const arguments) const noexcept{
             reinterpret_cast<const Walker*>(this)->Visit(arguments);
+            auto args = arguments->GetArguments();
+            while (args != nullptr) {
+                this->template Dispatch<Walker>(args);
+                args = args->NextNode();
+            }
         }
 
         void Visit(const LispParseError * const error) const noexcept{
             reinterpret_cast<const Walker*>(this)->Visit(error);
+            this->template Dispatch<Walker>(error->NextNode());
         }
 
     };
 }
 #endif //LISPPARSETREEVISITOR_H
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
