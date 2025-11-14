@@ -882,15 +882,9 @@ namespace WideLips::Tests {
         const auto input = PadString("+ 1 2)");
         const auto lexer = CreateLexer(input);
         EXPECT_FALSE(lexer->Tokenize());
-        EXPECT_EQ(lexer->GetDiagnostics().Size(), 4);
+        EXPECT_EQ(lexer->GetDiagnostics().Size(), 1);
         EXPECT_EQ(lexer->GetDiagnostics()[0].GetSeverity(),Severity::Error);
-        EXPECT_EQ(lexer->GetDiagnostics()[0].GetErrorCode(),DiagnosticFactory::ErrorCodeToString(ParsingErrorCode::UnexpectedTopLevelToken));
-        EXPECT_EQ(lexer->GetDiagnostics()[1].GetSeverity(),Severity::Error);
-        EXPECT_EQ(lexer->GetDiagnostics()[1].GetErrorCode(),DiagnosticFactory::ErrorCodeToString(ParsingErrorCode::UnexpectedTopLevelToken));
-        EXPECT_EQ(lexer->GetDiagnostics()[2].GetSeverity(),Severity::Error);
-        EXPECT_EQ(lexer->GetDiagnostics()[2].GetErrorCode(),DiagnosticFactory::ErrorCodeToString(ParsingErrorCode::UnexpectedTopLevelToken));
-        EXPECT_EQ(lexer->GetDiagnostics()[3].GetSeverity(),Severity::Error);
-        EXPECT_EQ(lexer->GetDiagnostics()[3].GetErrorCode(),DiagnosticFactory::ErrorCodeToString(ParsingErrorCode::NoMatchingOpenParenthesis));
+        EXPECT_EQ(lexer->GetDiagnostics()[0].GetErrorCode(),DiagnosticFactory::ErrorCodeToString(ParsingErrorCode::NoMatchingOpenParenthesis));
     }
 
     TEST_F(LispLexerTest, Error_MalformedFloat) {

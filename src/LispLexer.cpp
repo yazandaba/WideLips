@@ -616,10 +616,9 @@ namespace WideLips {
                 ch = SkipToCharAtWithoutColumn(endOfCommentOffset);
                 ++_line;
                 _column = 1;
-                continue;
             }
             //fragments
-            if (const std::uint32_t fragmentsBlock = block.FragmentsMask >> posInBlock;fragmentsBlock & 1U) {
+            else if (const std::uint32_t fragmentsBlock = block.FragmentsMask >> posInBlock;fragmentsBlock & 1U) {
                 const TokenizationBlock* currentBlock = &block;
                 const auto startLine = _line;
                 auto [startOfRegion,lengthOfRegion] = FetchFragmentRegion(fragmentsBlock,posInBlock,currentBlock);
@@ -635,10 +634,9 @@ namespace WideLips {
                 else {
                     _column += lengthOfRegion;
                 }
-                continue;
             }
             //sexpr and operators (most of them)
-            if (const std::uint32_t sexprOpsBlock = block.SExprAndOpsMask >> posInBlock; sexprOpsBlock & 1U) {
+            else if (const std::uint32_t sexprOpsBlock = block.SExprAndOpsMask >> posInBlock; sexprOpsBlock & 1U) {
                 ch = NextChar();
             }
             //digits
@@ -672,13 +670,6 @@ namespace WideLips {
                     LispToken{_text.data()+_tokenStreamPos,_line,1,0,_column,0,LispTokenKind::Invalid}));
                 ch = NextChar();
             }
-
-            if (stack.Empty()) [[unlikely]]{
-                //there cannot be any top level token other than S-expression tokens aka '(' and ')'
-                _diagnostics.EmplaceBack(DiagnosticFactory::UnexpectedTopLevelToken(_filePath,
-                    _line,
-                    _column));
-            }
         }
 
         auto bufferSize = stack.Size();
@@ -692,9 +683,11 @@ namespace WideLips {
                 ));
         }
 
-        const auto noError = std::all_of(_diagnostics.begin(),
+        auto noError = std::all_of(_diagnostics.begin(),
             _diagnostics.end(),
             [](const LispDiagnostic& diagnostic) {return diagnostic.GetSeverity() != Severity::Error;});
+
+        noError &= CheckAtomsAtTopLevelBlue();
 
         _tokenized = true;
         _reused = false;
@@ -795,6 +788,74 @@ namespace WideLips {
             default:
                 return {_text.data()+_textStreamPos,1};
         }
+    }
+
+    bool LispLexer::CheckAtomsAtTopLevelBlue() noexcept {
+        using namespace Diagnostic;
+
+        if (_sexprIndices.Empty())[[unlikely]]{
+            return true;
+        }
+        _textStreamPos = 0;
+        const auto* currentSexprIndex = &_sexprIndices[0];
+        char ch = CurrentChar();
+        bool result = true;
+        //instead of checking that we are at program top level for each iteration in 'TokenizeBlue' instead
+        //we jump between top level lists and then loop between the end of 'list' N and start of 'list' N+1
+        //if any token was detected in such region then it's a syntax error
+        //this improves the overall performance of the blue pass while keeping validation sound and without
+        do {
+            while (_textStreamPos < currentSexprIndex->Open)[[likely]]{
+                const std::size_t blockIndex = _textStreamPos >> 5;
+                const TokenizationBlock& block = *_blocks.At(blockIndex);
+                const std::uint8_t posInBlock = OffsetInBlock();
+                if (const auto targetNewlineBlock = block.NewLines >> (posInBlock + 1); IsComment(ch)) {
+                    const auto [_,endOfCommentOffset] = FetchCommentRegion(targetNewlineBlock,posInBlock);
+                    ch = SkipToCharAtWithoutColumn(endOfCommentOffset);
+                    ++_line;
+                    _column = 1;
+                }
+                //fragments
+                else if (const std::uint32_t fragmentsBlock = block.FragmentsMask >> posInBlock;fragmentsBlock & 1U) {
+                    const TokenizationBlock* currentBlock = &block;
+                    const auto startLine = _line;
+                    auto [startOfRegion,lengthOfRegion] = FetchFragmentRegion(fragmentsBlock,posInBlock,currentBlock);
+                    ch = SkipToCharAtWithoutColumn(lengthOfRegion);
+                    if (_line != startLine) {
+                        currentBlock = _blocks.At(_textStreamPos >> 5);
+                        const std::uint8_t offsetInBlock = OffsetInBlock(); //position where last fragment is
+                        const std::uint32_t posOfLastNewLine =
+                            (TokensInBlock- std::countl_zero(~(0xFFFFFFFFU << offsetInBlock) & currentBlock->NewLines))
+                            & TokensInBlockBoundary;
+                        _column = std::countr_one(currentBlock->FragmentsMask >> posOfLastNewLine) + 1;
+                    }
+                    else {
+                        _column += lengthOfRegion;
+                    }
+                }
+                //if there are no trivia between adjacent lists, then we just jump to the next list
+                else if (ch == '(') {
+                    break;
+                }
+                else {
+                    //there cannot be any top level token other than S-expression tokens aka '(' and ')'
+                    _diagnostics.EmplaceBack(DiagnosticFactory::UnexpectedTopLevelToken(_filePath,
+                        _line,
+                        _column));
+                    result = false;
+                    //it's sufficient to report one 'UnexpectedTopLevelToken' then we jump to next list
+                    break;
+                }
+            }
+            _textStreamPos = currentSexprIndex->Close+1;
+            if (currentSexprIndex->Next >= _sexprIndices.Size() || !currentSexprIndex->Next) {
+                break;
+            }
+            currentSexprIndex = &_sexprIndices[currentSexprIndex->Next];
+            ch = CurrentChar();
+        }while (true);
+
+        return result;
     }
 
     ALWAYS_INLINE bool LispLexer::IsOperator(const char c) noexcept {

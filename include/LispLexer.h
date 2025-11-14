@@ -324,6 +324,7 @@ namespace WideLips {
             std::uint8_t posInBlock,
             const TokenizationBlock* currentBlock) noexcept;
         StaticTokenRegion TokenizeOperatorsOrStructuralBlue() noexcept;
+        bool CheckAtomsAtTopLevelBlue() noexcept;
     private:
         NODISCARD PURE static bool IsOperator(char c) noexcept;
         NODISCARD PURE static bool IsDecimal(char c) noexcept;
