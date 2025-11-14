@@ -44,10 +44,10 @@ WideLips processes text in 2^N chunks (32-bytes currently) using CPU underlying 
 
 - **Parallel Classification**: Identify character classes (parentheses, identifiers, numbers, whitespace) across 32 characters simultaneously
 - **Bitmask Generation**: SIMD comparisons produce compact 32-bit masks for fast decision-making
-- **Table-Driven Lookup**: Uses SIMD shuffle instructions (e.g. `pshufb`) for character classification without branches
+- **Table-Driven Lookup**: Uses SIMD shuffle instructions (e.g. `pshufb`) for character classification
+- **Branchless**: The SIMD classification loop is branch-free, avoiding any possible branch mispredictions
 
-The vectorized approach eliminates branch mispredictions and processes multiple characters per instruction also
-instructions are scheduled carefully and expression trees are balanced to run in parallel (ILP).
+SIMD instructions/intrinsics in loop are scheduled carefully, and expression trees are balanced to run in parallel (ILP).
 
 ### 2. Arenas Backed Containers
 
@@ -170,7 +170,7 @@ and in some cases 100% faster than code compiled with MSVC.
 by default, it's built as a static library to build libWideLips as a shared library,
 use `-DBUILD_SHARED_LIBS=ON` option.
 - **CMake**: 3.20 or newer
-- **Ninja**: WideLips uses Ninja primarily as its build system, but 'Unix Makefiles' and 'Visual Studio' are supported as well.
+- **Build System**: WideLips uses Ninja (1.13.1) primarily as its build system, but 'Unix Makefiles' and 'Visual Studio' are supported as well.
 - **OS**: Windows, Linux
 - **CPU**: AVX2 support (Intel Haswell 2013+, AMD Excavator 2015+)
 
@@ -178,6 +178,7 @@ use `-DBUILD_SHARED_LIBS=ON` option.
 before getting into the build process, you can use the following options to customize the build:
 - **-DBuildTests**: Build unit tests
 - **-DBuildBenchmarks**: Build benchmarks
+- **-DBuildExamples**: Build examples
 - **-DENABLE_SANITIZERS**: Enable sanitizers (UB and ASAN are the ones used)
 - **-DENABLE_COVERAGE**: Enable coverage instrumentation
 
@@ -276,7 +277,7 @@ WideLips/
 All of the benchmarks were done on Raptor Lake CPU (intel i9-13900k), WideLips achieves:
 
 - **Lexing throughput**: 3GB/S on average with maximum throughput (but inconsistent) of 6GB/S and more 
-for a wide range of samples 
+for a wide range of samples (Blue pass only)
 - **Startup time**: Near-instant for lazy parsing (Blue pass only)
 
 The SIMD approach really shines on large files where branch prediction fails traditional parsers.
