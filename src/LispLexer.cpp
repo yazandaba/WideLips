@@ -1050,7 +1050,7 @@ namespace WideLips {
 #ifdef EnableBenjamin
             case '$':
 #endif
-#ifdef EnableTild
+#ifdef EnableTilda
             case '~':
 #endif
 
