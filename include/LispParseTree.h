@@ -280,7 +280,7 @@ namespace WideLips {
     private:
         const LispToken * const _sexprBegin;
         const LispToken * const _sexprEnd;
-        mutable LispParseNodeBasePointer _subExpressions;
+        LispParseNodeBasePointer _subExpressions;
     public:
         LispList(const LispToken * const sexprBegin,
             const LispToken * const sexprEnd,
@@ -313,9 +313,6 @@ namespace WideLips {
          *         or `nullptr` if the sub-expressions could not be parsed or are empty.
          */
         NODISCARD ALWAYS_INLINE const LispParseNodeBase* GetSubExpressions (const bool csEmptySExpr=false) const {
-            if (_subExpressions != nullptr) {
-                return _subExpressions;
-            }
             LispLexer* const lexer = Parser->GetLexer();
             const auto sexprRegion = lexer->TokenizeSExpr(_sexprBegin,csEmptySExpr);
             if (!sexprRegion) {
@@ -330,8 +327,7 @@ namespace WideLips {
                 return nullptr;
             }
             const auto& [subExprBegin,subExprEnd] = sexprRegion.value();
-            _subExpressions = Parser->Parse(subExprBegin,subExprEnd);
-            return _subExpressions;
+            return Parser->Parse(subExprBegin,subExprEnd);;
         }
 
         /**

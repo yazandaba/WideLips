@@ -258,7 +258,7 @@ namespace WideLips::Tests {
         }
     }
 
-    TEST_F(LispParseTreeTest, LazyParsingSubExpressions) {
+    TEST_F(LispParseTreeTest, LazyConstParsingSubExpressions) {
         const auto result = ParseProgram("(defun foo (x y) (+ x y))");
         ASSERT_TRUE(result.Success);
 
@@ -272,8 +272,27 @@ namespace WideLips::Tests {
         const auto* subExprs1 = list->GetSubExpressions();
         ASSERT_NE(subExprs1, nullptr);
 
-        // Second call should return the same cached result
+        // Second call should return new copy - also triggers lazy evaluation
         const auto* subExprs2 = list->GetSubExpressions();
+        EXPECT_NE(subExprs1, subExprs2);
+    }
+
+    TEST_F(LispParseTreeTest, LazyParsingSubExpressions) {
+        const auto result = ParseProgram("(defun foo (x y) (+ x y))");
+        ASSERT_TRUE(result.Success);
+
+        auto* root = result.ParseTree->GetRoot();
+        ASSERT_NE(root, nullptr);
+        EXPECT_EQ(root->Kind, LispParseNodeKind::SExpr);
+
+        auto* list = reinterpret_cast<LispList*>(root);
+
+        // First call to GetSubExpressions - triggers lazy evaluation
+        auto* subExprs1 = list->GetSubExpressions();
+        ASSERT_NE(subExprs1, nullptr);
+
+        // Second call should return the same cached result
+        auto* subExprs2 = list->GetSubExpressions();
         EXPECT_EQ(subExprs1, subExprs2);
     }
 
@@ -1181,7 +1200,7 @@ namespace WideLips::Tests {
         auto* root = result.ParseTree->GetRoot();
         ASSERT_NE(root, nullptr);
 
-        auto* outerList = reinterpret_cast<const LispList*>(root);
+        auto* outerList = reinterpret_cast<LispList*>(root);
 
         // Get sub-expressions multiple times - should return cached value
         const auto* sub1 = outerList->GetSubExpressions();
