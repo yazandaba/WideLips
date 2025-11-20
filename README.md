@@ -354,6 +354,9 @@ The two-phase design keeps the Blue pass (structural analysis) separate from the
 - New dialects can reuse the same Blue pass
 - Custom Parse Tree representations are easy to plug in
 
+## Technical Read
+https://yazandaba.hashnode.dev/widelips-a-multi-gbs-lisp-parser-and-parsing-framework
+
 ## License
 
 MIT License—see [LICENSE](LICENSE).  file for details.
